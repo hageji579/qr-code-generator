@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>vCard QR Code Generator</title>
+  <script src="https://cdn.jsdelivr.net/npm/qr-code-styling@1.5.0/lib/qr-code-styling.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f0f2f5;
+      color: #333;
+      padding: 20px;
+      max-width: 700px;
+      margin: auto;
+    }
+    h2 {
+      text-align: center;
+      color: #4a90e2;
+    }
+    label {
+      margin-top: 10px;
+      display: block;
+      font-weight: bold;
+    }
+    input, select, button {
+      margin: 5px 0;
+      width: 100%;
+      padding: 10px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+      box-sizing: border-box;
+      font-size: 1rem;
+    }
+    .custom-field {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 5px;
+    }
+    .custom-field input {
+      flex: 1;
+    }
+    button {
+      background-color: #4a90e2;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #357ABD;
+    }
+    .qr-style-preview {
+      display: flex;
+      gap: 10px;
+      margin: 10px 0;
+      flex-wrap: wrap;
+    }
+    .qr-style-preview div {
+      text-align: center;
+      cursor: pointer;
+    }
+    .qr-style-preview canvas {
+      border: 2px solid transparent;
+      background: white;
+    }
+    .qr-style-preview .selected canvas {
+      border-color: #4a90e2;
+    }
+    #qrcode {
+      margin: 20px 0;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <h2>vCard QR Code Generator</h2>
+  <label>Full Name:</label>
+  <input type="text" id="fullName" />
+  <label>Mobile Number:</label>
+  <input type="text" id="mobile" />
+  <label>Work Number:</label>
+  <input type="text" id="work" />
+  <label>Email:</label>
+  <input type="email" id="email" />
+  <label>Organization:</label>
+  <input type="text" id="org" />
+  <label>Job Title:</label>
+  <input type="text" id="title" />
+  <label>Department:</label>
+  <input type="text" id="department" />
+  <label>Street:</label>
+  <input type="text" id="street" />
+  <label>City:</label>
+  <input type="text" id="city" />
+  <label>Post Code:</label>
+  <input type="text" id="postcode" />
+  <label>Country:</label>
+  <input type="text" id="country" />
+  <label>Website (URL):</label>
+  <input type="text" id="url" />
+  <label>QR Size (pixels):</label>
+  <input type="number" id="qrSize" value="300" />
+  <label>Download Format:</label>
+  <select id="downloadFormat">
+    <option value="png">PNG</option>
+    <option value="svg">SVG</option>
+    <option value="jpeg">JPEG</option>
+  </select>
+  <label>File Name:</label>
+  <input type="text" id="fileName" value="vcard-qr" />
+  <input type="hidden" id="qrStyle" value="square" />
+  <div class="qr-style-preview" id="stylePreviews"></div>
+
+  <div id="customFields"></div>
+  <button onclick="addCustomField()">Add Custom Field</button>
+  <button onclick="generateQRCode()">Generate QR Code</button>
+  <div id="qrcode"></div>
+  <button onclick="downloadQRCode()">Download QR Code</button>
+
+  <script>
+    let qrCode;
+
+    function addCustomField() {
+      const div = document.createElement('div');
+      div.classList.add('custom-field');
+      div.innerHTML = `
+        <input placeholder="Label (e.g., LinkedIn)" />
+        <input placeholder="Value (e.g., https://linkedin.com/in/...)" />
+      `;
+      document.getElementById('customFields').appendChild(div);
+    }
+
+    function generateQRCode() {
+      const name = document.getElementById("fullName").value;
+      const mobile = document.getElementById("mobile").value;
+      const work = document.getElementById("work").value;
+      const email = document.getElementById("email").value;
+      const org = document.getElementById("org").value;
+      const title = document.getElementById("title").value;
+      const department = document.getElementById("department").value;
+      const street = document.getElementById("street").value;
+      const city = document.getElementById("city").value;
+      const postcode = document.getElementById("postcode").value;
+      const country = document.getElementById("country").value;
+      const url = document.getElementById("url").value;
+      const size = parseInt(document.getElementById("qrSize").value) || 300;
+      const style = document.getElementById("qrStyle").value;
+
+      let vCard = `BEGIN:VCARD\nVERSION:3.0\nFN:${name}\nORG:${org}`;
+      if (department) vCard += `;${department}`;
+      vCard += `\nTITLE:${title}`;
+      if (mobile) vCard += `\nTEL;TYPE=CELL:${mobile}`;
+      if (work) vCard += `\nTEL;TYPE=WORK:${work}`;
+      if (email) vCard += `\nEMAIL:${email}`;
+      if (street || city || postcode || country) {
+        vCard += `\nADR;TYPE=WORK:;;${street};${city};;${postcode};${country}`;
+      }
+      if (url) vCard += `\nURL:${url}`;
+
+      const customFields = document.querySelectorAll("#customFields .custom-field");
+      customFields.forEach(field => {
+        const label = field.children[0].value.trim();
+        const value = field.children[1].value.trim();
+        if (label && value) {
+          vCard += `\nNOTE:${label}: ${value}`;
+        }
+      });
+
+      vCard += `\nEND:VCARD`;
+
+      if (qrCode) {
+        document.getElementById("qrcode").innerHTML = "";
+      }
+
+      qrCode = new QRCodeStyling({
+        width: size,
+        height: size,
+        type: "canvas",
+        data: vCard,
+        imageOptions: { crossOrigin: "anonymous", margin: 20 },
+        dotsOptions: { type: style, color: "#000" },
+        cornersSquareOptions: { type: style },
+      });
+
+      qrCode.append(document.getElementById("qrcode"));
+    }
+
+    function downloadQRCode() {
+      const format = document.getElementById("downloadFormat").value;
+      const fileName = document.getElementById("fileName").value || "vcard-qr";
+      if (qrCode) qrCode.download({ name: fileName, extension: format });
+    }
+
+    function generateStylePreviews() {
+      const styles = ["square", "dots", "rounded", "classy", "classy-rounded", "extra-rounded"];
+      const container = document.getElementById("stylePreviews");
+      container.innerHTML = "";
+
+      styles.forEach(s => {
+        const preview = new QRCodeStyling({
+          width: 80,
+          height: 80,
+          type: "canvas",
+          data: "Preview",
+          dotsOptions: { type: s, color: "#000" },
+          cornersSquareOptions: { type: s },
+        });
+
+        const wrapper = document.createElement("div");
+        const label = document.createElement("div");
+        label.innerText = s;
+        const canvasWrapper = document.createElement("div");
+
+        wrapper.appendChild(canvasWrapper);
+        wrapper.appendChild(label);
+        container.appendChild(wrapper);
+        preview.append(canvasWrapper);
+
+        wrapper.onclick = () => {
+          document.querySelectorAll(".qr-style-preview div").forEach(el => el.classList.remove("selected"));
+          wrapper.classList.add("selected");
+          document.getElementById("qrStyle").value = s;
+        };
+
+        if (s === "square") wrapper.classList.add("selected");
+      });
+    }
+
+    generateStylePreviews();
+  </script>
+</body>
+</html>
